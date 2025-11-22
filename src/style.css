@@ -1,0 +1,14 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Kyobo", system-ui, sans-serif;
+  background: #000;
+}
+
+#app {
+  display: flex;
+  justify-content: center;
+}
