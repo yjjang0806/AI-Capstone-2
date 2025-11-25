@@ -1,43 +1,40 @@
 <template>
   <div class="login">
-    <img class="back" :src="back" @click="goBack" />
+    <div class="container">
+      <img class="back" :src="back" @click="goBack" />
 
-    <h2>로그인</h2>
+      <div class="title">이메일로 로그인하기</div>
 
-    <form @submit.prevent="handleLogin" class="form-area">
-      <input
-        type="email"
-        placeholder="이메일 입력"
-        v-model="email"
-        required
-        class="box"
-      />
-      <input
-        type="password"
-        placeholder="비밀번호 입력"
-        v-model="password"
-        required
-        class="box"
-      />
+      <label class="label">이메일</label>
+      <div class="box">
+        <input type="email" v-model="email" placeholder="이메일을 입력하세요" />
+      </div>
 
-      <button type="submit" class="box login-btn" :disabled="loading">
+      <label class="label">비밀번호</label>
+      <div class="box password-box">
+        <input :type="show ? 'text' : 'password'" v-model="password" placeholder="비밀번호를 입력하세요" />
+        <img :src="show ? eyeClose : eyeOpen" class="eye" @click="show = !show" />
+      </div>
+
+      <button class="login-btn" @click="handleLogin" :disabled="loading">
         {{ loading ? "로그인 중..." : "로그인" }}
       </button>
-    </form>
 
-    <p class="sub">
-      계정이 없으신가요?
-      <a @click="goJoin">회원가입</a>
-    </p>
+      <p class="bottom-text">
+        계정이 없으신가요? <span class="link" @click="goJoin">회원가입</span>
+      </p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
+import { loginAPI } from "@/api/axios";
 import { useUserStore } from "@/stores/userStore";
 import back from "@/assets/back.png";
+import eyeOpen from "@/assets/eye-open.svg";
+import eyeClose from "@/assets/eye-close.svg";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -45,103 +42,155 @@ const userStore = useUserStore();
 const email = ref("");
 const password = ref("");
 const loading = ref(false);
+const show = ref(false);
 
 const handleLogin = async () => {
-  if (!email.value || !password.value) {
-    alert("이메일과 비밀번호를 입력해주세요.");
-    return;
-  }
+  if (!email.value || !password.value) return alert("모든 항목을 입력해주세요.");
 
   loading.value = true;
   try {
-    const res = await axios.post("/api/auth/login", {
+    const res = await loginAPI({
       email: email.value,
       password: password.value,
     });
 
-    const token = res.data.data.accessToken;
-    userStore.saveToken(token);
+    const d = res.data.data;
 
-    alert("로그인 완료!");
-    router.push("/home");
-  } catch (e) {
-    console.error(e);
-    alert("로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.");
+    // 🔥 토큰 저장
+    userStore.saveToken(d.accessToken);
+
+    // 🔥 유저 정보 저장 (userStore에 setUser 함수 없음 → store.user에 직접 저장)
+    userStore.user = {
+      email: d.email,
+      nickname: d.nickname,
+      gender: d.gender,
+      birthDate: d.birthDate,
+    };
+
+    alert("로그인 성공!");
+    router.push("/home");   // 🔥 카메라가 아니라 home으로 이동해야 인증 문제 없음
+  } catch (err) {
+    console.error("로그인 실패:", err);
+    alert("로그인 실패. 이메일 또는 비밀번호를 확인해주세요.");
   } finally {
     loading.value = false;
   }
 };
 
-const goJoin = () => router.push("/join");
 const goBack = () => router.push("/");
+const goJoin = () => router.push("/join");
 </script>
 
 <style scoped>
 .login {
-  width: 393px;
-  height: 852px;
-  margin: 0 auto;
-  background: #ffffff;
-  font-family: "Kyobo";
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-.back {
-  width: 38px;
-  height: 38px;
-  position: absolute;
-  top: 40px;
-  left: 20px;
-  cursor: pointer;
-}
-h2 {
-  margin-top: 110px;
-  margin-bottom: 30px;
-  font-size: 22px;
-  text-align: center;
-  color: #1d5113;
-  font-family: "Kyobo";
-}
-.form-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   width: 100%;
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  box-sizing: border-box;
 }
+
+.container {
+  width: 100%;
+  max-width: 430px;
+  display: flex;
+  flex-direction: column;
+}
+
+.back {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  margin-bottom: 26px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #27481e;
+  margin-bottom: 26px;
+}
+
+.label {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #27481e;
+}
+
 .box {
-  width: 347px;
-  height: 59px;
+  width: 100%;
+  height: 52px;
   background: #f3f4f6;
   border-radius: 10px;
   border: 1px solid #e5e5e5;
+  margin-bottom: 14px;
   padding: 0 18px;
-  box-sizing: border-box;
-  margin-bottom: 18px;
-  font-size: 16px;
-  font-family: "Kyobo";
-  color: #1d5113;
+  display: flex;
+  align-items: center;
 }
-.login-btn {
-  background: #1d5113;
-  color: white;
+
+.box input {
+  width: 100%;
   border: none;
-  font-size: 18px;
-  justify-content: center;
+  outline: none;
+  background: none;
+  font-size: 15px;
+  color: #27481e;
+}
+
+.password-box {
+  position: relative;
+}
+
+.eye {
+  position: absolute;
+  right: 18px;
+  width: 22px;
+  height: 22px;
   cursor: pointer;
 }
+
+.login-btn {
+  width: 100%;
+  height: 54px;
+  background: #27481e;
+  color: white;
+  border-radius: 12px;
+  border: none;
+  font-size: 17px;
+  cursor: pointer;
+}
+
 .login-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
 }
-.sub {
-  margin-top: 10px;
-  font-size: 14px;
-  font-family: "Kyobo";
+
+.bottom-text {
+  font-size: 13px;
+  text-align: center;
+  margin-top: 24px;
+  color: #7b7b7b;
 }
-.sub a {
-  color: #1d5113;
+
+.link {
+  color: #27481e;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .login {
+    padding-top: 80px;
+  }
+  .title {
+    font-size: 24px;
+  }
+  .login-btn {
+    font-size: 18px;
+  }
 }
 </style>

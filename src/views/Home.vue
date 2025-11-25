@@ -1,69 +1,71 @@
 <template>
-  <div class="home-container">
-    <div class="content">
-      <div class="top-row">
-        <div class="top-title">당신의 피부 결과</div>
-        <button class="history-btn" @click="loadHistory" :disabled="loadingResult">
-          {{ loadingResult ? "불러오는 중..." : "지난 측정 결과 불러오기" }}
-        </button>
+  <div class="home">
+    <header class="header">
+      <h1 class="logo">VE:GIN</h1>
+      <p class="greeting">
+        {{ nickname ? nickname + "님," : "" }} 오늘 피부 상태가 궁금하신가요?
+      </p>
+    </header>
+
+    <section class="card" v-if="result">
+      <div class="card-header">
+        <p class="card-title">최근 피부 분석 결과</p>
+        <p class="date">{{ result.measuredAt }}</p>
       </div>
 
-      <div class="main-card">
-        <div class="left">
-          <img v-if="faceImage" :src="faceImage" class="img-box" />
-          <div v-else class="img-box empty"></div>
+      <div class="result-main">
+        <div class="mbti-badge">{{ result.skinMbtiType }}</div>
+        <p class="type">{{ result.skinType }}</p>
+        <p class="headline">{{ result.headline }}</p>
+        <p class="desc">
+          {{ result.skinDescription }}
+        </p>
+      </div>
+
+      <div class="indices">
+        <div class="idx" v-for="item in indicesList" :key="item.key">
+          <p class="idx-label">{{ item.label }}</p>
+          <div class="idx-bar">
+            <div class="fill" :style="{ width: item.percent + '%' }"></div>
+          </div>
         </div>
-
-        <div class="right">
-          <div class="skin-type">
-            {{ result?.skinType || "피부 타입 미측정" }}🌿
-          </div>
-          <div class="type-desc">
-            {{ result?.skinDescription || "피부 측정을 완료하면 결과가 표시됩니다." }}
-          </div>
-
-          <div class="label">측정 날짜</div>
-          <div class="date">{{ result?.measuredAt || "-" }}</div>
-
-          <button class="measure-btn" @click="goMeasure">다시 측정하기</button>
-        </div>
       </div>
 
-      <div class="section-title">내가 담았던 추천 화장품</div>
+      <button class="primary-btn" @click="goResult">자세히 보기</button>
+    </section>
 
-      <div v-if="loadingRecommendations" class="loading-text">
-        추천 제품을 불러오는 중입니다...
-      </div>
+    <section class="card" v-else>
+      <p class="card-title">아직 분석 결과가 없어요</p>
+      <p class="empty-text">
+        한 장의 셀카와 몇 가지 질문만으로<br />
+        나의 비건 화장품 루틴을 시작해보세요.
+      </p>
+      <button class="primary-btn" @click="startAnalysis">
+        지금 피부 분석 시작하기
+      </button>
+    </section>
 
-      <div v-else class="product-list">
-        <template v-if="recommendations.length">
-          <div
-            class="product-card"
-            v-for="item in recommendations"
-            :key="item.productId"
-            @click="openDetail(item.productId)"
-          >
-            <button
-              class="fav-btn"
-              :class="{ active: isFavorite(item.productId) }"
-              @click.stop="toggleFav(item.productId)"
-            >
-              ♥
-            </button>
-
-            <img :src="item.imageUrl" class="product-img" />
-
-            <div class="product-name">{{ item.productName }}</div>
-            <div class="product-sub">{{ item.brand }}</div>
-            <div class="product-price">
-              {{ item.salePrice.toLocaleString() }}원
-            </div>
+    <section class="card" v-if="recommendations.length">
+      <p class="card-title">오늘의 추천 비건 화장품</p>
+      <ul class="reco-list">
+        <li
+          v-for="item in top3"
+          :key="item.productId"
+          class="reco-item"
+          @click="openDetail(item.productId)"
+        >
+          <img :src="item.imageUrl" class="thumb" />
+          <div class="info">
+            <p class="brand">{{ item.brand }}</p>
+            <p class="name">{{ item.productName }}</p>
+            <p class="price">{{ item.salePrice.toLocaleString() }}원</p>
           </div>
-        </template>
-
-        <div v-else class="empty-text">아직 담아둔 추천 화장품이 없어요.</div>
-      </div>
-    </div>
+        </li>
+      </ul>
+      <button class="secondary-btn" @click="goRecommendation">
+        전체 추천 보러가기
+      </button>
+    </section>
   </div>
 </template>
 
@@ -71,213 +73,227 @@
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSkinStore } from "@/stores/skinStore";
+import { useUserStore } from "@/stores/userStore";
 
 const router = useRouter();
-const store = useSkinStore();
+const skinStore = useSkinStore();
+const userStore = useUserStore();
 
-const result = computed(() => store.currentResult);
-const faceImage = computed(
-  () => store.currentResult?.imageUrl || store.facePreviewUrl,
-);
-const recommendations = computed(() => store.recommendations);
-const loadingResult = computed(() => store.loadingAnalysis);
-const loadingRecommendations = computed(() => store.loadingRecommendations);
-
-onMounted(async () => {
-  store.initFromStorage();
-  // 필요할 때만 MyPage에서 최근 결과 가져오기
-  if (!store.currentResult) {
-    await store.fetchLatestFromMyPage();
-  }
+onMounted(() => {
+  skinStore.initFromStorage();
+  skinStore.fetchLatestFromMyPage().catch(() => {});
 });
 
-function loadHistory() {
-  store.loadResultFromStorage();
-}
+const result = computed(() => skinStore.currentResult);
+const recommendations = computed(() => skinStore.recommendations);
+const nickname = computed(() => userStore.user?.nickname || "");
 
-function goMeasure() {
-  router.push("/camera");
-}
+const indicesList = computed(() => {
+  if (!result.value) return [];
+  const ind = result.value.indices;
+  return [
+    { key: "oil", label: "유분", percent: Math.min(ind.oil * 20, 100) },
+    { key: "dry", label: "건조", percent: Math.min(ind.dry * 20, 100) },
+    {
+      key: "sensitivity",
+      label: "민감",
+      percent: Math.min(ind.sensitivity * 20, 100),
+    },
+    {
+      key: "wrinkle",
+      label: "주름",
+      percent: Math.min(ind.wrinkle * 20, 100),
+    },
+    {
+      key: "pigment",
+      label: "색소",
+      percent: Math.min(ind.pigment * 20, 100),
+    },
+  ];
+});
 
-function openDetail(id: string) {
-  router.push(`/product/${id}`);
-}
+const top3 = computed(() => recommendations.value.slice(0, 3));
 
-function toggleFav(id: string) {
-  store.toggleFavorite(id);
-}
-
-function isFavorite(id: string) {
-  return store.isFavorite(id);
-}
+const startAnalysis = () => router.push("/camera");
+const goResult = () => router.push("/result");
+const goRecommendation = () => router.push("/recommendation");
+const openDetail = (id: string) => router.push(`/product/${id}`);
 </script>
 
 <style scoped>
-.home-container {
-  width: 100%;
-  background: #f5f5f5;
-  display: flex;
-  justify-content: center;
-}
-.content {
-  width: 100%;
-  max-width: 393px;
-  background: white;
-  padding: 50px 24px 40px;
+.home {
+  width: 393px;
+  min-height: 852px;
+  margin: 0 auto;
+  padding: 32px 20px 24px;
+  background: #f7f8f7;
   box-sizing: border-box;
-  min-height: 100vh;
 }
-.top-row {
+
+.header {
+  margin-bottom: 16px;
+}
+
+.logo {
+  font-size: 24px;
+  color: #27481e;
+  margin-bottom: 4px;
+}
+
+.greeting {
+  font-size: 14px;
+  color: #7b7b7b;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px 18px 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+  margin-bottom: 16px;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-.top-title {
-  font-size: 18px;
-  color: #1d1d1d;
-  font-family: "Kyobo";
-}
-.history-btn {
-  border-radius: 999px;
-  border: 1px solid #244424;
-  background: #ffffff;
-  color: #244424;
-  font-size: 11px;
-  padding: 6px 10px;
-  font-family: "Kyobo";
-}
-.history-btn:disabled {
-  opacity: 0.6;
-}
-.main-card {
-  display: flex;
-  width: 100%;
-  gap: 14px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  margin-bottom: 32px;
-}
-.img-box {
-  width: 110px;
-  height: 140px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-.img-box.empty {
-  background: #dadada;
-}
-.right {
-  flex: 1;
-}
-.skin-type {
-  font-size: 22px;
-  font-weight: 700;
-  color: #244424;
-  font-family: "Kyobo";
-}
-.type-desc {
-  font-size: 13px;
-  color: #4b4b4b;
+  align-items: baseline;
   margin-bottom: 12px;
-  font-family: "Kyobo";
 }
-.label {
-  font-size: 12px;
-  font-family: "Kyobo";
-  color: #666;
-  margin-top: 10px;
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #27481e;
 }
+
 .date {
-  font-size: 14px;
-  font-family: "Kyobo";
+  font-size: 12px;
+  color: #a1a1a1;
 }
-.measure-btn {
-  width: 100%;
-  height: 40px;
-  border-radius: 8px;
-  border: none;
-  background: #244424;
-  color: white;
-  margin-top: 14px;
-  font-size: 14px;
-  font-family: "Kyobo";
+
+.result-main {
+  margin-bottom: 14px;
 }
-.section-title {
-  margin-bottom: 12px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1d1d1d;
-  font-family: "Kyobo";
-}
-.loading-text,
-.empty-text {
-  font-size: 13px;
-  color: #777;
-  margin-top: 6px;
-}
-.product-list {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-.product-list::-webkit-scrollbar {
-  display: none;
-}
-.product-card {
-  flex: 0 0 70%;
-  max-width: 240px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
-  position: relative;
-  scroll-snap-align: start;
-}
-.fav-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 26px;
-  height: 26px;
+
+.mbti-badge {
+  display: inline-block;
+  padding: 4px 10px;
   border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #27481e;
+  font-size: 11px;
+  color: #27481e;
+  margin-bottom: 6px;
+}
+
+.type {
+  font-size: 18px;
+  font-weight: 600;
+  color: #27481e;
+}
+
+.headline {
+  margin-top: 6px;
   font-size: 14px;
-  line-height: 26px;
-  text-align: center;
-  cursor: pointer;
-  color: #999;
+  color: #333;
 }
-.fav-btn.active {
-  color: #e64b4b;
+
+.desc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #666;
 }
-.product-img {
+
+.indices {
+  margin-top: 10px;
+  margin-bottom: 14px;
+}
+
+.idx {
+  margin-bottom: 6px;
+}
+
+.idx-label {
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 2px;
+}
+
+.idx-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #edf0ec;
+  overflow: hidden;
+}
+
+.idx-bar .fill {
+  height: 100%;
+  background: #27481e;
+}
+
+.primary-btn,
+.secondary-btn {
   width: 100%;
-  height: 120px;
+  height: 48px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #27481e;
+  color: white;
+}
+
+.secondary-btn {
+  margin-top: 8px;
+  background: #ffffff;
+  color: #27481e;
+  border: 1px solid #d7ddd6;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+  margin: 12px 0 18px;
+}
+
+.reco-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 4px;
+}
+
+.reco-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.thumb {
+  width: 56px;
+  height: 56px;
   border-radius: 10px;
   object-fit: cover;
+  margin-right: 10px;
 }
-.product-name {
-  margin-top: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  color: #333;
-  font-family: "Kyobo";
+
+.info .brand {
+  font-size: 11px;
+  color: #888;
 }
-.product-sub {
-  font-size: 13px;
-  color: #666;
-}
-.product-price {
-  margin-top: 4px;
+
+.info .name {
   font-size: 14px;
-  font-family: "Kyobo";
-  color: #1d1d1d;
+  color: #333;
+  margin-top: 2px;
+}
+
+.info .price {
+  font-size: 13px;
+  color: #27481e;
+  margin-top: 4px;
 }
 </style>

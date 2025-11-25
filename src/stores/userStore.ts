@@ -30,10 +30,21 @@ export const useUserStore = defineStore("user", {
       axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     },
 
+    saveUser(user: User) {
+      this.user = user;
+      localStorage.setItem("vegin_user", JSON.stringify(user));
+    },
+
+    loadUser() {
+      const raw = localStorage.getItem("vegin_user");
+      if (raw) this.user = JSON.parse(raw);
+    },
+
     logout() {
       this.accessToken = null;
       this.user = null;
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("vegin_user");
       delete axios.defaults.headers.common.Authorization;
     },
   },

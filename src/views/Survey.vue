@@ -1,182 +1,279 @@
+<!-- src/views/Survey.vue -->
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { useSurveyStore } from "@/stores/surveyStore";
+
+const router = useRouter();
+const surveyStore = useSurveyStore();
+
+const QUESTIONS = [
+  {
+    text: "평소에 얼굴에 유분감이 느껴지는 부위는 어디인가요?",
+    options: ["없어요", "T존 일부 (이마 혹은 코)", "T존 전체 (이마와 코)", "얼굴 전체"],
+  },
+  {
+    text: "세안 직후 얼굴에 홍조나 붉은 기가 보이나요?",
+    options: [
+      "전혀 없어요",
+      "자극은 없지만 가끔 보여요",
+      "부분적으로 붉게 보여요",
+      "전체적으로 붉게 보여요",
+    ],
+  },
+  {
+    text: "세안 후 1시간 뒤 피부 상태를 가장 잘 표현한 것은?",
+    options: ["땅김이 심해요", "약간 건조해요", "적당해요", "번들거려요"],
+  },
+  {
+    text: "하루 중 피부 당김을 느끼는 시간이 있나요?",
+    options: ["거의 항상", "오후만 되면", "가끔", "없어요"],
+  },
+  {
+    text: "트러블(여드름·뾰루지)은 얼마나 자주 생기나요?",
+    options: ["자주", "가끔", "거의 없음", "전혀 없음"],
+  },
+  {
+    text: "모공이 가장 신경 쓰이는 부위는?",
+    options: ["코 주변", "볼", "전체", "신경 쓰이지 않아요"],
+  },
+  {
+    text: "색소침착(기미·잡티·흉터) 정도는 어떤가요?",
+    options: ["많아요", "조금 있어요", "미세하게 있어요", "거의 없어요"],
+  },
+  {
+    text: "피부가 외부 자극(햇빛·마스크·건조함)에 민감하게 반응하나요?",
+    options: ["심하게", "가끔", "거의 없음", "전혀 없음"],
+  },
+  {
+    text: "세럼/크림을 사용했을 때 피부 반응은 어떤가요?",
+    options: [
+      "따가움/홍조 생김",
+      "흡수 안 되고 겉돌아요",
+      "보통이에요",
+      "흡수 잘 되고 편안해요",
+    ],
+  },
+  {
+    text: "얼굴에 주름이 가장 신경 쓰이는 부위는?",
+    options: ["눈가", "입가/팔자", "이마", "신경 쓰이지 않아요"],
+  },
+];
+
+const total = QUESTIONS.length;
+const currentIndex = ref(0);
+
+const currentQuestion = computed(() => QUESTIONS[currentIndex.value]);
+const selectedAnswer = computed(
+  () => surveyStore.answers[currentIndex.value] || ""
+);
+const progressPercent = computed(
+  () => ((currentIndex.value + 1) / total) * 100
+);
+const canGoNext = computed(() => !!selectedAnswer.value);
+
+const selectOption = (option: string) => {
+  surveyStore.setAnswer(currentIndex.value, option);
+};
+
+const goNext = () => {
+  if (!canGoNext.value) {
+    alert("답변을 선택해주세요.");
+    return;
+  }
+  if (currentIndex.value < total - 1) {
+    currentIndex.value += 1;
+  } else {
+    router.push("/loading");
+  }
+};
+
+const goPrev = () => {
+  if (currentIndex.value > 0) currentIndex.value -= 1;
+};
+
+onMounted(() => {
+  surveyStore.reset();
+});
+</script>
+
 <template>
-  <div class="survey">
-    <div class="progress-wrapper">
-      <div class="progress-bar" :style="{ width: progress + '%' }"></div>
-    </div>
+  <div class="page-root">
+    <div class="app-page survey-page">
+      <!-- 상단 진행바 -->
+      <div class="progress-wrap">
+        <div class="progress-top">
+          <span class="progress-text">
+            {{ currentIndex + 1 }} / {{ total }}
+          </span>
+        </div>
+        <div class="progress-bar">
+          <div
+            class="progress-bar__fill"
+            :style="{ width: progressPercent + '%' }"
+          />
+        </div>
+      </div>
 
-    <div class="progress-text">{{ progress }}%</div>
+      <!-- 질문 -->
+      <h1 class="question-text">
+        {{ currentQuestion.text }}
+      </h1>
 
-    <div v-if="index > 0" class="prev" @click="prevQuestion">이전 질문으로</div>
+      <!-- 선택지 -->
+      <div class="options-grid">
+        <button
+          v-for="option in currentQuestion.options"
+          :key="option"
+          class="option-card"
+          :class="{ active: selectedAnswer === option }"
+          @click="selectOption(option)"
+        >
+          {{ option }}
+        </button>
+      </div>
 
-    <h2 class="question">{{ current.question }}</h2>
-
-    <div class="options">
-      <div
-        v-for="(opt, i) in current.options"
-        :key="i"
-        class="option"
-        :class="{ active: selected === opt }"
-        @click="selectOption(opt)"
-      >
-        {{ opt }}
+      <!-- 네비 버튼 -->
+      <div class="nav-buttons">
+        <button
+          class="nav-btn prev"
+          :disabled="currentIndex === 0"
+          @click="goPrev"
+        >
+          ◀ 이전
+        </button>
+        <button
+          class="nav-btn next"
+          :disabled="!canGoNext"
+          @click="goNext"
+        >
+          {{ currentIndex === total - 1 ? "완료" : "계속하기" }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import { useSkinStore } from "@/stores/skinStore";
-
-interface Question {
-  question: string;
-  options: string[];
-}
-
-const router = useRouter();
-const store = useSkinStore();
-
-const questions: Question[] = [
-  { question: "평소에 얼굴에 유분감이 느껴지는 부위는 어디인가요?",
-    options: ["없어요", "T존 일부 (이마 혹은 코)", "T존 전체 (이마와 코)", "얼굴 전체"]
-  },
-  { question: "세안 직후 얼굴에 홍조나 붉은 기가 보이나요?",
-    options: ["전혀 안 보여요", "가끔 있어요", "부분적으로 보여요", "전체적으로 보여요"]
-  },
-  { question: "외출 후 반나절이 지나면 피부가 번들거리나요?",
-    options: ["더 건조해짐", "변함없음", "약간 번들거림", "많이 번들거림"]
-  },
-  { question: "얼굴에 핏줄이 도드라져 보이나요?",
-    options: ["전혀 안 보여요", "가끔 보여요", "부분적으로 보여요", "곳곳에 많이 보여요"]
-  },
-  { question: "평소 건조함이 느껴지는 부위가 있나요?",
-    options: ["없어요", "U존 일부", "U존 전체", "얼굴 전체"]
-  },
-  { question: "웃거나 찡그리면 주름이 생기나요?",
-    options: ["안 생겨요", "표정 지을 때만", "가볍게 있음", "표정 없이도 있음"]
-  },
-  { question: "주름의 깊이는 어떤가요?",
-    options: ["없어요", "잔주름", "깊은 주름", "둘 다 있음"]
-  },
-  { question: "입 주변 팔자 주름이 생기나요?",
-    options: ["없어요", "미소 지을 때만", "진하게 생김", "표정 없이도 생김"]
-  },
-  { question: "얼굴에 잡티/기미가 보이나요?",
-    options: ["전혀 없음", "거의 없음", "약간 있음", "많이 보임"]
-  },
-  { question: "햇빛에 노출 정도는 어느 정도인가요?",
-    options: ["거의 없음", "1시간 이내", "1~2시간 이상", "반나절 이상"]
-  }
-];
-
-const index = ref(0);
-const selected = ref<string | null>(null);
-const answers = ref<string[]>([]);
-
-// ⚠️ TS 에러 제거 & 안전하게 보장
-const current = computed(() => questions[index.value]!);
-
-const progress = computed(() =>
-  Math.round(((index.value + 1) / questions.length) * 100)
-);
-
-function selectOption(opt: string) {
-  selected.value = opt;
-  answers.value[index.value] = opt;
-
-  setTimeout(() => {
-    if (index.value < questions.length - 1) {
-      index.value++;
-      selected.value = null;
-    } else {
-      store.setSurveyAnswers(answers.value); // 저장
-      router.push("/loading"); // 로딩 페이지 이동
-    }
-  }, 200);
-}
-
-function prevQuestion() {
-  if (index.value > 0) {
-    index.value--;
-    selected.value = answers.value[index.value] ?? null;
-  }
-}
-</script>
-
 <style scoped>
-.survey {
-  padding: 0 24px;
-  padding-top: 40px;
-}
-
-.progress-wrapper {
+.page-root {
   width: 100%;
-  height: 6px;
-  background: #e8ede8;
-  border-radius: 10px;
-  overflow: hidden;
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
 }
 
-.progress-bar {
-  height: 6px;
-  background: #244424;
-  transition: width 0.3s;
+.survey-page {
+  display: flex;
+  flex-direction: column;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+/* 진행바 */
+.progress-wrap {
+  margin-bottom: 16px;
+}
+
+.progress-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
 }
 
 .progress-text {
-  margin-top: 8px;
-  text-align: right;
-  font-size: 14px;
-  color: #666;
+  font-size: 12px;
+  color: #27481e;
 }
 
-.prev {
-  margin-top: 20px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: #6b6b6b;
-  text-align: right;
-  cursor: pointer;
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #e5e5e5;
+  border-radius: 999px;
+  overflow: hidden;
 }
 
-.question {
-  width: 236px;
-  margin: 30px auto 32px;
+.progress-bar__fill {
+  height: 100%;
+  background: #27481e;
+  border-radius: 999px;
+}
+
+/* 질문 */
+.question-text {
+  font-size: 18px;
+  line-height: 1.5;
+  color: #27481e;
   text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  color: #333;
-  line-height: 32px;
+  margin-top: 20px;
+  margin-bottom: 24px;
 }
 
-.options {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px 14px;
+/* 옵션 그리드 */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
-.option {
-  width: 140px;
-  height: 140px;
-  border: 1.5px solid #244424;
-  border-radius: 10px;
+.option-card {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  border: 1px solid #27481e;
+  background: #ffffff;
+  font-size: 14px;
+  color: #27481e;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  font-size: 16px;
-  color: #244424;
-  background: #fff;
+  text-align: center;
+  padding: 10px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
-.option.active {
-  background: #1d5113;
-  color: white;
-  border-color: #1d5113;
-  transform: scale(1.03);
+.option-card.active {
+  background: #27481e;
+  color: #ffffff;
+}
+
+/* 네비게이션 버튼 */
+.nav-buttons {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.nav-btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.nav-btn.prev {
+  background: #f3f4f6;
+  color: #999999;
+}
+
+.nav-btn.prev:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.nav-btn.next {
+  background: #27481e;
+  color: #ffffff;
+}
+
+.nav-btn.next:disabled {
+  background: #cfd2d5;
+  color: #ffffff;
+  cursor: default;
 }
 </style>

@@ -1,25 +1,24 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import mkcert from "vite-plugin-mkcert";
 import path from "path";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), mkcert()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
   server: {
-    host: true,        // 🚨 "0.0.0.0" 보다 이게 더 강력 — 외부 전체 허용
+    https: true,
+    host: true,
     port: 5173,
-    strictPort: true,
-    cors: true,        // CORS도 허용
     proxy: {
       "/api": {
-        target: "https://nonidiomatical-laurice-muscularly.ngrok-free.dev",
+        target: "http://52.78.47.96:8080",
         changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        rewrite: (p) => p.replace(/^\/api/, ""),
       },
     },
   },
