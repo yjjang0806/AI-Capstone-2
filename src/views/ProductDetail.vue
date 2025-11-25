@@ -27,6 +27,8 @@ import { useRouter, useRoute } from "vue-router";
 
 const router = useRouter();
 const route = useRoute();
+const tags = computed(() => props.item.tags || props.item.xaiKeywords || []);
+
 
 // mock
 const product = ref({

@@ -1,10 +1,9 @@
-<!-- src/views/Loading.vue -->
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSkinStore } from "@/stores/skinStore";
 import { useSurveyStore } from "@/stores/surveyStore";
-import { submitAnalysisAPI } from "@/api/axios";
+import { uploadImageAPI, submitAnalysisAPI } from "@/api/axios";
 
 const router = useRouter();
 const skinStore = useSkinStore();
@@ -22,32 +21,40 @@ onMounted(async () => {
   }
 
   try {
-    const res = await submitAnalysisAPI(
-      skinStore.faceImage,
-      surveyStore.answers
-    );
-    const data = res.data?.data;
+    // 1) 이미지 업로드
+    const uploadRes = await uploadImageAPI(skinStore.faceImage);
+    const imageUrl = uploadRes.data.data.imageUrl;
 
-    if (!data) {
-      throw new Error("서버에서 결과를 받지 못했습니다.");
-    }
+    // 2) 분석 요청
+    const res = await submitAnalysisAPI(imageUrl, surveyStore.answers);
+    const data = res.data.data;
+    const fusion = data.fusion;
 
-    // 백엔드 spec: data 안에 최종 구조가 들어있음
-    const packed = {
-      imageUrl: data.imageUrl,
-      skinMbtiType: data.skinMbtiType,
-      skinType: data.skinType,
-      skinDescription: data.skinDescription,
+    const mapped = {
+      imageUrl: data.imageUrl ?? imageUrl,
+      skinMbtiType: fusion.skin_mbti,
+      skinType: fusion.skin_type,
       headline: data.headline,
-      whiteListIngredients: data.whiteListIngredients,
-      whiteListRecommendation: data.whiteListRecommendation,
-      blackListIngredients: data.blackListIngredients,
-      indices: data.indices,
-      visionRaw: data.visionRaw,
-      recommendations: data.recommendations,
+      skinDescription: data.skinDescription,
+      whiteListIngredients: data.whiteListIngredients ?? [],
+      whiteListRecommendation: data.whiteListRecommendation ?? "",
+      blackListIngredients: data.blackListIngredients ?? [],
+      indices: fusion.indices,
+      visionRaw: fusion.vision_raw ?? {},
+      recommendations: (data.recommendations ?? []).map((rec: any) => ({
+        productId: rec.product_id ?? rec.productId,
+        productName: rec.productName,
+        brand: rec.brand,
+        salePrice: rec.salePrice,
+        averageReviewScore: rec.averageReviewScore,
+        totalReviewCount: rec.totalReviewCount,
+        category: rec.category,
+        imageUrl: rec.image_url ?? rec.imageUrl,
+        tags: rec.xaiKeywords ?? [],
+      })),
     };
 
-    skinStore.setAnalysisResult(packed as any);
+    skinStore.setAnalysisResult(mapped);
     router.replace("/result");
   } catch (e) {
     console.error(e);
@@ -56,57 +63,3 @@ onMounted(async () => {
   }
 });
 </script>
-
-<template>
-  <div class="page-root">
-    <div class="app-page loading-page">
-      <div class="loader" />
-      <p class="loading-text" :class="{ error: isError }">
-        {{ message }}
-      </p>
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.page-root {
-  width: 100%;
-  min-height: 100vh;
-  background: #ffffff;
-  display: flex;
-  justify-content: center;
-}
-
-.loading-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.loader {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 4px solid #e5e5e5;
-  border-top-color: #27481e;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 18px;
-}
-
-.loading-text {
-  font-size: 16px;
-  color: #27481e;
-  text-align: center;
-}
-
-.loading-text.error {
-  color: #d03a3a;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>

@@ -6,7 +6,7 @@ import axios from "axios";
 import "./style.css";
 
 // ✅ 백엔드 주소
-axios.defaults.baseURL = "http://localhost:8080";
+axios.defaults.baseURL = "http://52.78.47.96:8080";
 
 // ✅ 토큰 자동 실어주는 인터셉터
 axios.interceptors.request.use((config) => {

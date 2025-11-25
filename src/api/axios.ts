@@ -1,8 +1,7 @@
-// src/api/axios.ts
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: "http://52.78.47.96:8080/",
   withCredentials: false,
   timeout: 10000,
 });
@@ -15,7 +14,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // FormData면 Content-Type 제거해서 브라우저가 자동 설정하게
     if (config.data instanceof FormData) {
       delete (config.headers as any)["Content-Type"];
     } else if (config.headers) {
@@ -41,26 +39,45 @@ api.interceptors.response.use(
   }
 );
 
-// 회원가입
-export const signupAPI = (data: {
+// ✅ 회원가입 - 수정
+export const signupAPI = (payload: {
   email: string;
   password: string;
-  nickname?: string;
-  birthDate?: string;
-  gender?: string;
-}) => api.post("/auth/signup", data);
+  nickname: string;
+  birthDate: string;
+  gender: "FEMALE" | "MALE";
+}) => api.post("/api/auth/signup", payload);  // ✅ baseURL 사용, 올바른 엔드포인트
 
 // 로그인
 export const loginAPI = (data: { email: string; password: string }) =>
-  api.post("/auth/login", data);
+  api.post("/api/auth/login", data);
 
-// 피부 분석 (이미지 + 설문)
+
+// 이미지 업로드
+export const uploadImageAPI = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/api/analysis/image", form);
+};
+
+// 피부 분석 (파일 + 설문)
 export const submitAnalysisAPI = (image: File, surveyAnswers: string[]) => {
   const form = new FormData();
-  form.append("image_url", image);
-  form.append("survey", JSON.stringify(surveyAnswers));
 
-  return api.post("/analysis/image", form);
+  form.append("file", image);
+
+  const surveyObj: Record<string, string> = {};
+  surveyAnswers.forEach((ans, idx) => {
+    surveyObj[`q${idx + 1}`] = ans;
+  });
+
+  const surveyBlob = new Blob([JSON.stringify(surveyObj)], {
+    type: "application/json",
+  });
+  form.append("survey", surveyBlob);
+
+  return api.post("/api/analysis/image", form);
 };
+
 
 export default api;

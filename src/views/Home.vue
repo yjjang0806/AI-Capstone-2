@@ -45,7 +45,7 @@
       </button>
     </section>
 
-    <section class="card" v-if="recommendations.length">
+    <section class="card" v-if="recommendations?.length>0">
       <p class="card-title">오늘의 추천 비건 화장품</p>
       <ul class="reco-list">
         <li
@@ -84,8 +84,8 @@ onMounted(() => {
   skinStore.fetchLatestFromMyPage().catch(() => {});
 });
 
-const result = computed(() => skinStore.currentResult);
-const recommendations = computed(() => skinStore.recommendations);
+const result = computed(() => skinStore.currentResult|| null);
+const recommendations = computed(() => skinStore.recommendations||[]);
 const nickname = computed(() => userStore.user?.nickname || "");
 
 const indicesList = computed(() => {
@@ -112,7 +112,7 @@ const indicesList = computed(() => {
   ];
 });
 
-const top3 = computed(() => recommendations.value.slice(0, 3));
+const top3 = computed(() => Array.isArray(recommendations.value)?recommendations.value.slice(0, 3):[]);
 
 const startAnalysis = () => router.push("/camera");
 const goResult = () => router.push("/result");
