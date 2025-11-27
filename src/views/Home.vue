@@ -1,76 +1,6 @@
-<template>
-  <div class="home">
-    <header class="header">
-      <h1 class="logo">VE:GIN</h1>
-      <p class="greeting">
-        {{ nickname ? nickname + "님," : "" }} 오늘 피부 상태가 궁금하신가요?
-      </p>
-    </header>
-
-    <section class="card" v-if="result">
-      <div class="card-header">
-        <p class="card-title">최근 피부 분석 결과</p>
-        <p class="date">{{ result.measuredAt }}</p>
-      </div>
-
-      <div class="result-main">
-        <div class="mbti-badge">{{ result.skinMbtiType }}</div>
-        <p class="type">{{ result.skinType }}</p>
-        <p class="headline">{{ result.headline }}</p>
-        <p class="desc">
-          {{ result.skinDescription }}
-        </p>
-      </div>
-
-      <div class="indices">
-        <div class="idx" v-for="item in indicesList" :key="item.key">
-          <p class="idx-label">{{ item.label }}</p>
-          <div class="idx-bar">
-            <div class="fill" :style="{ width: item.percent + '%' }"></div>
-          </div>
-        </div>
-      </div>
-
-      <button class="primary-btn" @click="goResult">자세히 보기</button>
-    </section>
-
-    <section class="card" v-else>
-      <p class="card-title">아직 분석 결과가 없어요</p>
-      <p class="empty-text">
-        한 장의 셀카와 몇 가지 질문만으로<br />
-        나의 비건 화장품 루틴을 시작해보세요.
-      </p>
-      <button class="primary-btn" @click="startAnalysis">
-        지금 피부 분석 시작하기
-      </button>
-    </section>
-
-    <section class="card" v-if="recommendations?.length>0">
-      <p class="card-title">오늘의 추천 비건 화장품</p>
-      <ul class="reco-list">
-        <li
-          v-for="item in top3"
-          :key="item.productId"
-          class="reco-item"
-          @click="openDetail(item.productId)"
-        >
-          <img :src="item.imageUrl" class="thumb" />
-          <div class="info">
-            <p class="brand">{{ item.brand }}</p>
-            <p class="name">{{ item.productName }}</p>
-            <p class="price">{{ item.salePrice.toLocaleString() }}원</p>
-          </div>
-        </li>
-      </ul>
-      <button class="secondary-btn" @click="goRecommendation">
-        전체 추천 보러가기
-      </button>
-    </section>
-  </div>
-</template>
-
+<!-- src/views/Home.vue -->
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useSkinStore } from "@/stores/skinStore";
 import { useUserStore } from "@/stores/userStore";
@@ -79,221 +9,248 @@ const router = useRouter();
 const skinStore = useSkinStore();
 const userStore = useUserStore();
 
+// ✨ 앱 실행 시 저장된 데이터 불러오기
 onMounted(() => {
-  skinStore.initFromStorage();
-  skinStore.fetchLatestFromMyPage().catch(() => {});
+  skinStore.loadResultFromStorage();
+  userStore.loadUser(); // 함수 없는 경우 대비
 });
 
-const result = computed(() => skinStore.currentResult|| null);
-const recommendations = computed(() => skinStore.recommendations||[]);
-const nickname = computed(() => userStore.user?.nickname || "");
+// 분석 결과
+const result = computed(() => skinStore.analysisResult);
 
-const indicesList = computed(() => {
-  if (!result.value) return [];
-  const ind = result.value.indices;
-  return [
-    { key: "oil", label: "유분", percent: Math.min(ind.oil * 20, 100) },
-    { key: "dry", label: "건조", percent: Math.min(ind.dry * 20, 100) },
-    {
-      key: "sensitivity",
-      label: "민감",
-      percent: Math.min(ind.sensitivity * 20, 100),
-    },
-    {
-      key: "wrinkle",
-      label: "주름",
-      percent: Math.min(ind.wrinkle * 20, 100),
-    },
-    {
-      key: "pigment",
-      label: "색소",
-      percent: Math.min(ind.pigment * 20, 100),
-    },
-  ];
+// 닉네임
+const nickname = computed(() => userStore.user?.nickname || "사용자");
+
+// 촬영 사진
+const faceImageUrl = computed(() => result.value?.imageUrl || "");
+
+// 날짜 포맷
+const formattedDate = computed(() => {
+  if (!skinStore.captureDate) return "-";
+  return new Date(skinStore.captureDate).toLocaleDateString("ko-KR");
 });
 
-const top3 = computed(() => Array.isArray(recommendations.value)?recommendations.value.slice(0, 3):[]);
+// 추천 화장품 (Guard 처리)
+const recommendations = computed(() =>
+  Array.isArray(result.value?.recommendations)
+    ? result.value.recommendations.slice(0, 4)
+    : []
+);
 
-const startAnalysis = () => router.push("/camera");
-const goResult = () => router.push("/result");
-const goRecommendation = () => router.push("/recommendation");
-const openDetail = (id: string) => router.push(`/product/${id}`);
+const hasResult = computed(() => !!result.value);
+
+function goDetail(item: any) {
+  router.push(`/product/${item.productId}`);
+}
+
+function goCamera() {
+  router.push("/camera");
+}
 </script>
 
+<template>
+  <div class="page-root">
+
+    <!-- 결과 있을 때 -->
+    <div class="home-page" v-if="hasResult">
+
+      <!-- 타이틀 -->
+      <div class="title-row">
+        <div class="line"></div>
+        <span class="title">{{ nickname }} 님의 피부 결과</span>
+      </div>
+
+      <!-- 메인 카드 -->
+      <section class="main-card">
+        <div class="top-area">
+          <img :src="faceImageUrl" class="face-img" v-if="faceImageUrl" />
+          <div class="right-info">
+            <p class="mbti">{{ result.skinMbtiType || "분석 필요" }} 🌿</p>
+            <p class="desc">{{ result.headline || result.skinDescription || "아직 설명이 없어요" }}</p>
+
+            <p class="date">측정 날짜 <span>{{ formattedDate }}</span>
+</p>
+
+            <button class="retry-btn" @click="goCamera">다시 측정하기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 추천 제품 -->
+      <h2 class="sub-title">내가 추천 받은 화장품</h2>
+
+      <div v-if="recommendations.length > 0" class="product-list">
+        <div
+          v-for="item in recommendations"
+          :key="item.productId"
+          class="product-card"
+          @click="goDetail(item)"
+        >
+          <img :src="item.imageUrl" class="p-img" />
+          <p class="p-name">{{ item.productName }}</p>
+          <p class="p-price">{{ item.salePrice || "-" }}원</p>
+        </div>
+      </div>
+
+      <div v-else class="empty">아직 추천 결과가 없어요 🧪</div>
+    </div>
+
+    <!-- 결과 없을 때 -->
+    <div v-else class="empty">
+      <p>아직 피부 진단 기록이 없어요 🧪</p>
+      <button @click="goCamera">첫 측정하러 가기</button>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.home {
-  width: 393px;
-  min-height: 852px;
-  margin: 0 auto;
-  padding: 32px 20px 24px;
-  background: #f7f8f7;
-  box-sizing: border-box;
-}
-
-.header {
-  margin-bottom: 16px;
-}
-
-.logo {
-  font-size: 24px;
-  color: #27481e;
-  margin-bottom: 4px;
-}
-
-.greeting {
-  font-size: 14px;
-  color: #7b7b7b;
-}
-
-.card {
+.page-root {
+  width: 100%;
+  min-height: 100vh;
   background: #ffffff;
-  border-radius: 18px;
-  padding: 18px 18px 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
-  margin-bottom: 16px;
-}
-
-.card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 12px;
+  justify-content: center;
 }
 
-.card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #27481e;
+.home-page {
+  width: 100%;
+  max-width: 390px;
+  padding: 16px 18px 40px;
 }
 
-.date {
-  font-size: 12px;
-  color: #a1a1a1;
+/* ===== 상단 타이틀 ===== */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
-.result-main {
-  margin-bottom: 14px;
+.line {
+  flex: 1;
+  height: 1px;
+  background: #d9d9d9;
 }
 
-.mbti-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid #27481e;
-  font-size: 11px;
+.title {
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* ===== 메인 카드 ===== */
+.main-card {
+  width: 100%;
+  padding: 16px;
+  background: #f8faf7;
+  border-radius: 14px;
+  margin-bottom: 26px;
+}
+
+.top-area {
+  display: flex;
+  gap: 16px;
+}
+
+.face-img {
+  width: 120px;
+  height: 150px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.right-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mbti {
+  font-size: 22px;
+  font-weight: 700;
   color: #27481e;
   margin-bottom: 6px;
-}
-
-.type {
-  font-size: 18px;
-  font-weight: 600;
-  color: #27481e;
-}
-
-.headline {
-  margin-top: 6px;
-  font-size: 14px;
-  color: #333;
 }
 
 .desc {
-  margin-top: 4px;
   font-size: 13px;
-  color: #666;
+  color: #555;
+  margin-bottom: 12px;
 }
 
-.indices {
-  margin-top: 10px;
+.date {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.date span {
+  font-weight: 600;
+}
+
+.retry-btn {
+  margin-top: auto;
+  background: #27481e;
+  color: #fff;
+  border: none;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* ===== 추천 제품 섹션 ===== */
+.sub-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
   margin-bottom: 14px;
 }
 
-.idx {
-  margin-bottom: 6px;
+.product-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-.idx-label {
-  font-size: 12px;
-  color: #777;
-  margin-bottom: 2px;
-}
-
-.idx-bar {
-  height: 6px;
-  border-radius: 999px;
-  background: #edf0ec;
-  overflow: hidden;
-}
-
-.idx-bar .fill {
-  height: 100%;
-  background: #27481e;
-}
-
-.primary-btn,
-.secondary-btn {
-  width: 100%;
-  height: 48px;
+.product-card {
+  background: #fafafa;
   border-radius: 12px;
-  border: none;
-  font-size: 15px;
+  padding: 10px;
   cursor: pointer;
 }
 
-.primary-btn {
-  background: #27481e;
-  color: white;
-}
-
-.secondary-btn {
-  margin-top: 8px;
-  background: #ffffff;
-  color: #27481e;
-  border: 1px solid #d7ddd6;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: #555;
-  line-height: 1.5;
-  margin: 12px 0 18px;
-}
-
-.reco-list {
-  list-style: none;
-  padding: 0;
-  margin: 10px 0 4px;
-}
-
-.reco-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 0;
-  cursor: pointer;
-}
-
-.thumb {
-  width: 56px;
-  height: 56px;
+.p-img {
+  width: 100%;
+  height: 120px;
   border-radius: 10px;
   object-fit: cover;
-  margin-right: 10px;
+  margin-bottom: 8px;
 }
 
-.info .brand {
-  font-size: 11px;
-  color: #888;
-}
-
-.info .name {
-  font-size: 14px;
+.p-name {
+  font-size: 12px;
   color: #333;
-  margin-top: 2px;
+  margin-bottom: 4px;
 }
 
-.info .price {
-  font-size: 13px;
+.p-price {
+  font-size: 12px;
+  font-weight: 600;
   color: #27481e;
-  margin-top: 4px;
+}
+
+/* ===== Empty 상태 ===== */
+.empty {
+  text-align: center;
+  margin-top: 120px;
+  color: #333;
+}
+
+.empty button {
+  margin-top: 20px;
+  background: #27481e;
+  padding: 12px 18px;
+  color: #fff;
+  border-radius: 10px;
+  border: none;
 }
 </style>

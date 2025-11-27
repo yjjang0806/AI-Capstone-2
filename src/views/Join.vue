@@ -10,7 +10,7 @@
         <input type="email" v-model="email" placeholder="이메일을 입력하세요" />
       </div>
 
-      <label class="label">닉네임 (선택)</label>
+      <label class="label">닉네임</label>
       <div class="box">
         <input v-model="nickname" placeholder="닉네임을 입력하세요" />
       </div>
@@ -58,58 +58,51 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import api from "@/api/axios";
-import back from "@/assets/back.png";
-import eyeOpen from "@/assets/eye-open.svg";
-import eyeClose from "@/assets/eye-close.svg";
+import { signupAPI } from "@/api/axios";
+import { useUserStore } from "@/stores/userStore";
 
 const router = useRouter();
+const userStore = useUserStore();
 
 const email = ref("");
-const password = ref("");
 const nickname = ref("");
 const birthDate = ref("");
 const gender = ref("");
+const password = ref("");
 const loading = ref(false);
-
 const showPassword = ref(false);
-const togglePassword = () => (showPassword.value = !showPassword.value);
 
-const randomNickname = () => `user_${Math.floor(1000 + Math.random() * 9000)}`;
+const togglePassword = () => (showPassword.value = !showPassword.value);
 
 const handleSignup = async () => {
   if (!email.value || !password.value || !birthDate.value || !gender.value) {
-    alert("모든 필수 정보를 입력해주세요!");
+    alert("모든 필수 항목을 입력해주세요.");
     return;
   }
 
   loading.value = true;
   try {
-    await api.post("/api/auth/signup", {
+    const res = await signupAPI({
       email: email.value,
       password: password.value,
+      nickname: nickname.value,
       birthDate: birthDate.value,
-      gender: gender.value,
-      nickname: nickname.value || randomNickname(),
+      gender: gender.value === "F" ? "FEMALE" : "MALE",
     });
 
-    alert("회원가입 완료! 로그인 해주세요.");
+    alert("회원가입 완료!");
     router.push("/login");
   } catch (err: any) {
-    console.error("회원가입 에러:", err.response || err);
-    const userMsg =
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      "회원가입 실패. 다시 시도해주세요.";
-    alert(userMsg);
+    alert(err.response?.data?.message || "회원가입 실패");
   } finally {
     loading.value = false;
   }
 };
 
-const goBack = () => router.push("/");
 const goLogin = () => router.push("/login");
+const goBack = () => router.push("/");
 </script>
+
 
 <style scoped>
 /* 기존 스타일 그대로 유지 */
@@ -123,20 +116,31 @@ const goLogin = () => router.push("/login");
   box-sizing: border-box;
 }
 .back {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  image-rendering: crisp-edges;  
+  cursor: pointer;
+  margin-bottom: 26px;
+  margin-bottom: 26px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #27481e;
+  margin-bottom: 26px;
+  text-align: center;
+}
+
+.eye {
   position: absolute;
-  top: 32px;
-  left: 18px;
+  right: 18px;
+  width: 22px;
+  height: 22px;
   cursor: pointer;
 }
-.title {
-  text-align: left;
-  font-size: 22px;
-  margin-top: 90px;
-  margin-bottom: 24px;
-  color: #27481e;
-}
+
 .label {
   display: block;
   margin-bottom: 6px;
@@ -167,13 +171,7 @@ const goLogin = () => router.push("/login");
 .password-box {
   position: relative;
 }
-.eye {
-  width: 22px;
-  height: 22px;
-  position: absolute;
-  right: 18px;
-  cursor: pointer;
-}
+
 .join-btn {
   width: 100%;
   height: 56px;

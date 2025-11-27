@@ -16,9 +16,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://52.78.47.96:8080",
+        target: process.env.VITE_API_URL || "http://52.78.47.96:8080",
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, ""),
+        secure: false,
+        rewrite: (p) => p,
       },
     },
   },

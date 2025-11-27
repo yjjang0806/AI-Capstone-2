@@ -57,6 +57,9 @@ const goJoin = () => router.push("/join");
   margin-bottom: 8px;
 }
 
+.title-box {
+  text-align: center;
+}
 .subtitle {
   font-size: 14px;
   color: #27481e;

@@ -54,12 +54,12 @@ const handleLogin = async () => {
       password: password.value,
     });
 
-    const d = res.data.data;
+    const d = res.data.data ?? res.data;  // ← 백엔드 응답 형태 대비
 
-    // 🔥 토큰 저장
+    // 토큰 저장
     userStore.saveToken(d.accessToken);
 
-    // 🔥 유저 정보 저장 (userStore에 setUser 함수 없음 → store.user에 직접 저장)
+    // 유저 정보 저장
     userStore.user = {
       email: d.email,
       nickname: d.nickname,
@@ -68,10 +68,10 @@ const handleLogin = async () => {
     };
 
     alert("로그인 성공!");
-    router.push("/home");   // 🔥 카메라가 아니라 home으로 이동해야 인증 문제 없음
-  } catch (err) {
+    router.push("/home");
+  } catch (err: any) {
     console.error("로그인 실패:", err);
-    alert("로그인 실패. 이메일 또는 비밀번호를 확인해주세요.");
+    alert(err.response?.data?.message || "로그인 실패. 이메일 또는 비밀번호를 확인해주세요.");
   } finally {
     loading.value = false;
   }
@@ -79,7 +79,10 @@ const handleLogin = async () => {
 
 const goBack = () => router.push("/");
 const goJoin = () => router.push("/join");
+
+// 🚫 여기 있던 API 호출 제거!
 </script>
+
 
 <style scoped>
 .login {
@@ -99,11 +102,16 @@ const goJoin = () => router.push("/join");
   display: flex;
   flex-direction: column;
 }
-
+.title {
+  text-align: center;
+}
 .back {
   width: 30px;
   height: 30px;
+  object-fit: contain;
+  image-rendering: crisp-edges;  
   cursor: pointer;
+  margin-bottom: 26px;
   margin-bottom: 26px;
 }
 
@@ -112,6 +120,14 @@ const goJoin = () => router.push("/join");
   font-weight: 600;
   color: #27481e;
   margin-bottom: 26px;
+}
+
+.eye {
+  position: absolute;
+  right: 18px;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
 }
 
 .label {
@@ -145,13 +161,6 @@ const goJoin = () => router.push("/join");
   position: relative;
 }
 
-.eye {
-  position: absolute;
-  right: 18px;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
-}
 
 .login-btn {
   width: 100%;

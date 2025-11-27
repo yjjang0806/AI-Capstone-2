@@ -1,9 +1,15 @@
 import axios from "axios";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://52.78.47.96:8080";
+
 const api = axios.create({
-  baseURL: "http://52.78.47.96:8080/",
+  baseURL: API_BASE,   // 👉 반드시 필요!
   withCredentials: false,
   timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
 });
 
 // 요청 인터셉터
@@ -13,13 +19,6 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    if (config.data instanceof FormData) {
-      delete (config.headers as any)["Content-Type"];
-    } else if (config.headers) {
-      config.headers["Content-Type"] = "application/json";
-    }
-
     return config;
   },
   (error) => Promise.reject(error)
@@ -39,45 +38,44 @@ api.interceptors.response.use(
   }
 );
 
-// ✅ 회원가입 - 수정
+// 🔥 회원가입
 export const signupAPI = (payload: {
   email: string;
   password: string;
   nickname: string;
   birthDate: string;
-  gender: "FEMALE" | "MALE";
-}) => api.post("/api/auth/signup", payload);  // ✅ baseURL 사용, 올바른 엔드포인트
+  gender: string;
+}) => api.post("/api/auth/signup", payload);
 
-// 로그인
-export const loginAPI = (data: { email: string; password: string }) =>
-  api.post("/api/auth/login", data);
+// 🔥 로그인
+export const loginAPI = (payload: { email: string; password: string }) =>
+  api.post("/api/auth/login", payload);
 
-
-// 이미지 업로드
-export const uploadImageAPI = (file: File) => {
-  const form = new FormData();
-  form.append("file", file);
-  return api.post("/api/analysis/image", form);
-};
-
-// 피부 분석 (파일 + 설문)
+// 🔥 피부 분석 제출
 export const submitAnalysisAPI = (image: File, surveyAnswers: string[]) => {
   const form = new FormData();
 
   form.append("file", image);
 
-  const surveyObj: Record<string, string> = {};
-  surveyAnswers.forEach((ans, idx) => {
-    surveyObj[`q${idx + 1}`] = ans;
-  });
+  // 🔥 서버 요구대로 survey를 JSON 문자열로 전달
+  const surveyData = surveyAnswers.reduce((acc, ans, index) => {
+    acc[`q${index + 1}`] = ans;
+    return acc;
+  }, {} as Record<string, string>);
 
-  const surveyBlob = new Blob([JSON.stringify(surveyObj)], {
-    type: "application/json",
-  });
-  form.append("survey", surveyBlob);
+  form.append("survey", JSON.stringify(surveyData)); // <-- 핵심
 
-  return api.post("/api/analysis/image", form);
+  return api.post("/api/analysis/image", form, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 };
 
+
+
+// 🔥 분석 결과 조회
+export const getAnalysisResultAPI = (id: number) =>
+  api.get(`/api/analysis/${id}`);
 
 export default api;

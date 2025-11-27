@@ -1,7 +1,6 @@
-/* 이미 Kyobo 폰트 @font-face 설정되어 있으면 이 부분은 생략해도 됨 */
 @font-face {
   font-family: 'KyoboHandwriting2020';
-  src: url('@/assets/kyoboHandwriting2020pdy.ttf') format('truetype');
+  src: url('@/assets/SCDream4.otf') format('OpenType');
   font-weight: normal;
   font-style: normal;
 }
