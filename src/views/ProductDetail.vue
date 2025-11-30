@@ -1,53 +1,68 @@
 <template>
-  <div class="detail-container">
-    <img :src="product.image" class="main-img" />
-
-    <div class="info">
-      <h2 class="name">{{ product.name }}</h2>
-      <p class="price">{{ formatPrice(product.price) }}</p>
-
-      <div class="section">
-        <h3>제품 특징</h3>
-        <p class="desc">{{ product.description }}</p>
-      </div>
-
-      <div class="section">
-        <h3>추천 이유</h3>
-        <p class="desc">{{ product.reason }}</p>
-      </div>
+  <article class="product-card" @click="$emit('open', item.productId)">
+    <div class="thumb-wrap">
+      <a 
+        :href="naverShoppingUrl" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        @click.stop
+      >
+        <img 
+          :src="item.imageUrl" 
+          alt="" 
+          class="product-img" 
+        />
+      </a>
     </div>
 
-    <button class="back-btn" @click="goBack">뒤로가기</button>
-  </div>
+    <div class="card-body">
+      <h3 class="product-name">{{ item.productName }}</h3>
+      <p class="product-brand">{{ item.brand }}</p>
+      <p class="product-price">{{ formattedPrice }}</p>
+
+      <div class="tags" v-if="item.tags && item.tags.length">
+        <span v-for="(tag, i) in item.tags" :key="i" class="tag">#{{ tag }}</span>
+      </div>
+
+      <p class="review" v-if="item.averageReviewScore">
+        ★ {{ item.averageReviewScore.toFixed(2) }} ({{ item.totalReviewCount }})
+      </p>
+    </div>
+  </article>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { computed } from "vue";
+import type { Product } from "@/stores/skinStore";
 
-const router = useRouter();
-const route = useRoute();
-const tags = computed(() => props.item.tags || props.item.xaiKeywords || []);
+const props = defineProps<{ item: Product }>();
 
+const formattedPrice = computed(() =>
+  props.item.salePrice.toLocaleString() + "원"
+);
 
-// mock
-const product = ref({
-  id: route.params.id,
-  name: "Nare Night cream",
-  price: 29000,
-  image: "/img/p1.png",
-  description: "피부 보습에 좋은 크림입니다.",
-  reason: "건성 피부에 필요한 수분막 형성",
+const naverShoppingUrl = computed(() => {
+  if (!props.item.productName) return "#";
+  const encodedProductName = encodeURIComponent(props.item.productName);
+  return `https://search.shopping.naver.com/search/all?query=${encodedProductName}`;
 });
-
-function formatPrice(p: number) {
-  return p.toLocaleString() + "원";
-}
-
-function goBack() {
-  router.back();
-}
 </script>
+
+<style scoped>
+.thumb-wrap {
+  width: 100%;
+  background: #f3f4f4;
+}
+.thumb-wrap a {
+  display: block;
+  width: 100%;
+}
+.product-img {
+  width: 100%;
+  display: block;
+  cursor: pointer;
+}
+</style>
 
 <style scoped>
 .detail-container {
